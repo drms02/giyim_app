@@ -1,3 +1,14 @@
+import sys
+import bcrypt
+from dotenv import load_dotenv
+
+# --- YAMA KODU (EN TEPEDE OLMALI) ---
+# Passlib ve Bcrypt uyumsuzluğunu çözen yama:
+# Bu kod, "from passlib..." satırından ÖNCE çalışmak zorunda!
+if not hasattr(bcrypt, "__about__"):
+    from collections import namedtuple
+    bcrypt.__about__ = namedtuple("About", ["__version__"])(bcrypt.__version__)
+# ------------------------------------
 from dotenv import load_dotenv # .env dosyasını okumak için
 from passlib.context import CryptContext # Şifreleme için
 from fastapi.security import OAuth2PasswordBearer
@@ -17,15 +28,7 @@ from datetime import datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
 from groq import Groq
-# --- EN BAŞA EKLENECEK KISIM (BAŞLANGIÇ) ---
-import sys
-import bcrypt
 
-# Passlib ve Bcrypt uyumsuzluğunu çözen yama:
-if not hasattr(bcrypt, "__about__"):
-    from collections import namedtuple
-    bcrypt.__about__ = namedtuple("About", ["__version__"])(bcrypt.__version__)
-# --- EN BAŞA EKLENECEK KISIM (BİTİŞ) ---
 # --- AYARLAR VE GÜVENLİK ---
 load_dotenv() # .env dosyasını yükle
 
@@ -1751,6 +1754,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
