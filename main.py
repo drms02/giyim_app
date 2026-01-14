@@ -1,14 +1,15 @@
+# --- EN BAŞA EKLENECEK KISIM (BAŞLANGIÇ) ---
 import sys
 import bcrypt
 from dotenv import load_dotenv
 
-# --- YAMA KODU (EN TEPEDE OLMALI) ---
-# Passlib ve Bcrypt uyumsuzluğunu çözen yama:
-# Bu kod, "from passlib..." satırından ÖNCE çalışmak zorunda!
+# YENİ YAMA (Class Yöntemi - Python 3.13 Uyumlu):
+# Passlib ve Bcrypt uyumsuzluğunu çözen kod:
 if not hasattr(bcrypt, "__about__"):
-    from collections import namedtuple
-    bcrypt.__about__ = namedtuple("About", ["__version__"])(bcrypt.__version__)
-# ------------------------------------
+    class About:
+        __version__ = bcrypt.__version__
+    bcrypt.__about__ = About()
+# -------------------------------------------
 from dotenv import load_dotenv # .env dosyasını okumak için
 from passlib.context import CryptContext # Şifreleme için
 from fastapi.security import OAuth2PasswordBearer
@@ -1754,6 +1755,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
