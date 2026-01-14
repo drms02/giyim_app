@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+python-multipart
+rembg
+pillow
+imagehash
+numpy
+requests
+beautifulsoup4
+groq
+python-dotenv
+passlib[bcrypt]
+pydantic
+python-jose
+aiofiles
