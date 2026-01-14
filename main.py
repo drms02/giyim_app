@@ -387,11 +387,28 @@ def check_limits(username, feature_type):
 
 @app.get("/")
 async def read_index():
-    # Direkt static klasörünün içine bak diyoruz:
-    if os.path.exists("static/index.html"):
-        return FileResponse("static/index.html")
-    else:
-        return {"error": "index.html dosyası static klasöründe bulunamadı."}
+    # 1. Önce 'static/index.html' yolunu dene
+    path1 = "static/index.html"
+    if os.path.exists(path1):
+        return FileResponse(path1)
+    
+    # 2. Olmadıysa direkt 'index.html' yolunu dene (Belki dışarıdadır)
+    path2 = "index.html"
+    if os.path.exists(path2):
+        return FileResponse(path2)
+
+    # 3. İkisi de yoksa, bana etrafında ne gördüğünü söyle (HATA RAPORU)
+    import os
+    current_dir = os.getcwd()
+    files = os.listdir(current_dir)
+    static_files = os.listdir("static") if os.path.exists("static") else "Static klasörü yok!"
+    
+    return {
+        "HATA": "Dosya bulunamadı!",
+        "Benim_Konumum": current_dir,
+        "Yanımdaki_Dosyalar": files,
+        "Static_Klasörünün_İçi": static_files
+    }
 
 @app.get("/favicon.ico")
 async def get_favicon():
@@ -1727,3 +1744,4 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
