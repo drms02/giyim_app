@@ -1,17 +1,6 @@
-# --- EN BAŞA EKLENECEK KISIM (BAŞLANGIÇ) ---
 import sys
 import bcrypt
-from dotenv import load_dotenv
-
-# YENİ YAMA (Class Yöntemi - Python 3.13 Uyumlu):
-# Passlib ve Bcrypt uyumsuzluğunu çözen kod:
-if not hasattr(bcrypt, "__about__"):
-    class About:
-        __version__ = bcrypt.__version__
-    bcrypt.__about__ = About()
-# -------------------------------------------
 from dotenv import load_dotenv # .env dosyasını okumak için
-from passlib.context import CryptContext # Şifreleme için
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,15 +28,16 @@ if not GROQ_API_KEY:
 
 client = Groq(api_key=GROQ_API_KEY)
 
-# Şifreleme Ayarları
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-# --------------------------
+    # Düz şifreyi ve hashli şifreyi karşılaştırır
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+def get_password_hash(password):
+    # Şifreyi hashler
+    # gensalt() tuzu ekler, hashpw şifreler
+    hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    return hashed.decode('utf-8')
 
 class UserLoginSchema(BaseModel):
     username: str
@@ -1755,6 +1745,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
