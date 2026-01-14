@@ -388,23 +388,8 @@ def check_limits(username, feature_type):
 @app.get("/")
 async def read_root():
     import os
-    
-    # Nerede olduğumuzu ve etraftaki dosyaları görelim
-    neredeyim = os.getcwd()
-    dosyalar = os.listdir(".")
-    
-    # Static klasörü var mı bakalım
-    if os.path.exists("static"):
-        static_dosyalar = os.listdir("static")
-    else:
-        static_dosyalar = "YOK (Static klasörü bulunamadı!)"
-
-    return {
-        "HATA": "Dosyayı bulamadım ama işte etrafımdakiler:",
-        "Şu_Anki_Konum": neredeyim,
-        "Yanımdaki_Dosyalar": dosyalar,
-        "Static_Klasörünün_İçi": static_dosyalar
-    }
+    # Artık adını düzelttiğin için static içinde bulacak
+    return FileResponse("static/index.html")
     
     # 2. Olmadıysa direkt 'index.html' yolunu dene (Belki dışarıdadır)
     path2 = "index.html"
@@ -1758,6 +1743,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
