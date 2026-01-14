@@ -1,3 +1,8 @@
+# new_session ekliyoruz
+from rembg import remove, new_session 
+
+# Hafif modeli (u2netp) önceden yüklüyoruz
+ai_model = new_session("u2netp")
 import sys
 import bcrypt
 from dotenv import load_dotenv # .env dosyasını okumak için
@@ -810,7 +815,7 @@ async def process_image(
     img = Image.open(io.BytesIO(img_data)) 
     
     try:
-        out = remove(img)
+        out = remove(img, session=ai_model)
         out = crop_image(out)
         color_name = analyze_clothing_color(out)
         out.save(path)
@@ -1703,6 +1708,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
