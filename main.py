@@ -387,9 +387,11 @@ def check_limits(username, feature_type):
 
 @app.get("/")
 async def read_index():
-    index_path = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.exists(index_path): return FileResponse(index_path)
-    return {"error": "index.html bulunamadı."}
+    # Direkt static klasörünün içine bak diyoruz:
+    if os.path.exists("static/index.html"):
+        return FileResponse("static/index.html")
+    else:
+        return {"error": "index.html dosyası static klasöründe bulunamadı."}
 
 @app.get("/favicon.ico")
 async def get_favicon():
@@ -1723,4 +1725,5 @@ async def get_public_profile(username: str):
     except Exception as e:
         return {"status": "error", "message": str(e)}
     finally:
+
         conn.close()           
