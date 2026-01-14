@@ -1,8 +1,5 @@
 # new_session ekliyoruz
 from rembg import remove, new_session 
-
-# Hafif modeli (u2netp) önceden yüklüyoruz
-ai_model = new_session("u2netp")
 import sys
 import bcrypt
 from dotenv import load_dotenv # .env dosyasını okumak için
@@ -783,6 +780,7 @@ async def update_clothing_item(data: ItemUpdateSchema):
     finally:
         conn.close()
 
+# --- process_image FONKSİYONUNUN YENİ HALİ ---
 @app.post("/process/")
 async def process_image(
     file: UploadFile = File(...), 
@@ -792,64 +790,67 @@ async def process_image(
     username: str = Form(...),
     sub_category: str = Form(None)
 ): 
+    # 1. Limit Kontrolü
     allowed, msg = check_limits(username, 'upload')
     if not allowed:
         return {"error": msg}
     
-    # 1. Resmi Aç
+    # 2. Resmi Okuma
     img_data = await file.read()
     img = Image.open(io.BytesIO(img_data))
     
-    # 2. SPAM KONTROLÜ: Görsel Parmak İzi (Hash)
+    # 3. Spam Kontrolü
     is_dupe, img_hash = is_duplicate_image(username, img)
-    
-    # Eğer kopya ise uyarı ver (Ama yüklemeye izin verelim mi? Hayır, gereksiz yer kaplar)
     if is_dupe:
         return {"error": "Bu kıyafeti daha önce yüklemişsin! 🤔"}
 
-    # 3. İşlemler (Remove BG, Crop)
     unique_id = str(uuid.uuid4())
     path = os.path.join(UPLOAD_DIR, f"{unique_id}.png")
     
-    # Dosya imlecini başa sar (hash için okumuştuk)
+    # Dosya imlecini başa sar
     img = Image.open(io.BytesIO(img_data)) 
     
     try:
-        out = remove(img, session=ai_model)
+        # ✅ YENİ TAKTİK: Modeli sadece burada çağırıyoruz (Lazy Load)
+        # Bu sayede sunucu açılışta çökmez.
+        my_session = new_session("u2netp") 
+        out = remove(img, session=my_session) 
+        
         out = crop_image(out)
         color_name = analyze_clothing_color(out)
         out.save(path)
-    except:
+    except Exception as e:
+        print(f"AI Hatası: {e}")
         # Hata olursa orijinali kaydet
         img.save(path)
         color_name = "Bilinmiyor"
 
     url = f"/uploads/{unique_id}.png"
     
-    # 4. Veritabanına Kayıt
+    # 4. Veritabanı Kayıt
     conn = sqlite3.connect(DB_FILE)
     conn.execute("INSERT INTO clothes (username, url, category, season, style, color_name, wear_count, is_clean, sub_category, image_hash) VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?, ?)", 
-                 (username, url, category, season, style, color_name, sub_category, img_hash))
+                (username, url, category, season, style, color_name, sub_category, img_hash))
     conn.commit()
     conn.close()
     
-    # 5. GÜNLÜK XP KONTROLÜ
+    # 5. XP Verme Kısmı
     message = "Kıyafet eklendi!"
     if check_daily_xp_cap(username, 'upload', limit=5):
-        update_user_xp(username, 5) # 5 Puan Ver
-        
-        # Loga işle
-        conn = sqlite3.connect(DB_FILE)
-        today = datetime.now().strftime("%Y-%m-%d")
-        conn.execute("INSERT INTO xp_logs (username, action_type, xp_amount, log_date) VALUES (?, ?, ?, ?)", 
-                     (username, 'upload', 5, today))
-        conn.commit(); conn.close()
+        update_user_xp(username, 5)
+        # Log kaydı (Hata vermesin diye try-except içinde)
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            today = datetime.now().strftime("%Y-%m-%d")
+            conn.execute("INSERT INTO xp_logs (username, action_type, xp_amount, log_date) VALUES (?, ?, ?, ?)", 
+                         (username, 'upload', 5, today))
+            conn.commit(); conn.close()
+        except: pass
         message += " (+5 XP)"
     else:
         message += " (Günlük XP limitindesin)"
 
     return {"url": url, "color": color_name, "message": message}
-
 @app.get("/recommend/")
 async def recommend_outfit(season: str, style: str, username: str, event: str = None, outfit_type: str = "normal", force: bool = False):
     
@@ -1708,6 +1709,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
