@@ -439,65 +439,14 @@ async def fix_database_now():
     conn = sqlite3.connect(DB_FILE)
     log = []
     try:
-        # 1. ÖNCE TABLOLARIN VAR OLDUĞUNDAN EMİN OLALIM (Yoksa hata verir)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                username TEXT PRIMARY KEY,
-                full_name TEXT,
-                bio TEXT,
-                profile_pic_url TEXT,
-                email TEXT,
-                city TEXT,
-                gender TEXT,
-                xp INTEGER DEFAULT 0,
-                is_premium INTEGER DEFAULT 0,
-                password_hash TEXT
-            )
-        """)
-        
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS social_feed (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_from TEXT,
-                message TEXT,
-                image_url TEXT,
-                likes INTEGER DEFAULT 0,
-                duel_wins INTEGER DEFAULT 0,
-                user_name TEXT,
-                username_handle TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        conn.execute('''CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, username TEXT, text TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-
-        conn.execute('''CREATE TABLE IF NOT EXISTS xp_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT,
-                action_type TEXT, 
-                xp_amount INTEGER,
-                log_date TEXT 
-            )''')
-            
-        conn.execute('''CREATE TABLE IF NOT EXISTS clothes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                username TEXT, 
-                image_path TEXT, 
-                category TEXT, 
-                sub_category TEXT,
-                color TEXT, 
-                season TEXT,
-                is_clean INTEGER DEFAULT 1,
-                image_hash TEXT
-            )''')
-
-        # 2. ŞİMDİ EKSİK SÜTUNLARI EKLEYELİM
+        # --- 1. KRİTİK DÜZELTME: ŞİFRE SÜTUNU ---
         try:
             conn.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
-            log.append("✅ Şifre Sütunu Eklendi (password_hash)")
+            log.append("✅ Şifre Kutusu (password_hash) Eklendi! 🔒")
         except:
-            pass # Zaten varsa buraya düşer, sorun yok.
+            pass # Zaten varsa sorun yok, devam et.
 
+        # --- 2. DİĞER EKSİKLERİ TAMAMLA ---
         try:
             conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
             log.append("Email Eklendi")
@@ -515,12 +464,13 @@ async def fix_database_now():
         
         try:
             conn.execute("ALTER TABLE users ADD COLUMN xp INTEGER DEFAULT 0")
-            log.append("XP OK")
+            log.append("XP Sütunu Kontrol Edildi")
         except: pass
         
         try:
             conn.execute("ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0")
-            log.append("Premium Eklendi")
+            conn.execute("ALTER TABLE users ADD COLUMN premium_expiry TEXT")
+            log.append("Premium Özellikleri Eklendi")
         except: pass
 
         try:
@@ -546,6 +496,14 @@ async def fix_database_now():
         try:
             conn.execute("ALTER TABLE clothes ADD COLUMN image_hash TEXT")
         except: pass
+        
+        # --- 3. EKSİK TABLOLAR VARSA OLUŞTUR (Yedek) ---
+        # Eğer tablolar hiç yoksa hata vermesin diye burayı da ekliyoruz
+        conn.execute('''CREATE TABLE IF NOT EXISTS xp_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, action_type TEXT, xp_amount INTEGER, log_date TEXT)''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, username TEXT, text TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        
+        # Affiliate tablosunu da garantiye alalım
+        conn.execute('''CREATE TABLE IF NOT EXISTS affiliate_links (id INTEGER PRIMARY KEY AUTOINCREMENT, keyword TEXT UNIQUE, link TEXT, click_count INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
 
         conn.commit()
         return {"durum": "TAMAMLANDI", "yapilan_islemler": log}
@@ -1745,6 +1703,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
