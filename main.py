@@ -386,11 +386,16 @@ def check_limits(username, feature_type):
     return True, None
 
 @app.get("/")
-async def read_index():
-    # 1. Önce 'static/index.html' yolunu dene
-    path1 = "static/index.html"
-    if os.path.exists(path1):
-        return FileResponse(path1)
+async def read_root():
+    # 1. Önce static klasörüne bak (Doğru yer burası)
+    if os.path.exists("static/index.html"):
+        return FileResponse("static/index.html")
+    # 2. Olur da dışarıdaysa oraya bak
+    elif os.path.exists("index.html"):
+        return FileResponse("index.html")
+    # 3. Bulamazsa hata ver
+    else:
+        return {"error": "index.html dosyasi static klasorunde de ana dizinde de yok!"}
     
     # 2. Olmadıysa direkt 'index.html' yolunu dene (Belki dışarıdadır)
     path2 = "index.html"
@@ -1744,4 +1749,5 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
