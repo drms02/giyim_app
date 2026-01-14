@@ -387,7 +387,9 @@ def check_limits(username, feature_type):
 
 @app.get("/")
 async def read_root():
-    # 1. Önce static klasörüne bak (Doğru yer burası)
+    import os  # <--- İŞTE EKSİK OLAN BU! Bunu ekleyince hata gidecek.
+    
+    # 1. Önce static klasörüne bak
     if os.path.exists("static/index.html"):
         return FileResponse("static/index.html")
     # 2. Olur da dışarıdaysa oraya bak
@@ -1749,5 +1751,6 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
