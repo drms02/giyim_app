@@ -21,14 +21,26 @@ from bs4 import BeautifulSoup
 from groq import Groq
 import os
 import sys
+import shutil # Dosya taşıma komutu
 
-# --- BU KODU EN TEPEYE (Importların Altına) YAPIŞTIR ---
-# Yapay zeka modelini internetten indirme, klasörden al:
-os.environ["U2NET_HOME"] = os.path.dirname(os.path.abspath(__file__))
-# -------------------------------------------------------
+# --- AKILLI MODEL AYARI (BUNU KULLAN) ---
+# 1. Uygulamanın çalıştığı ana dizini bul
+base_path = os.path.dirname(os.path.abspath(__file__))
+os.environ["U2NET_HOME"] = base_path
 
-# Diğer importlar burada devam edebilir...
-from fastapi import FastAPI...
+# 2. Kütüphane dosyayı ".u2net" klasöründe arar. O klasörü oluşturalım:
+target_folder = os.path.join(base_path, ".u2net")
+if not os.path.exists(target_folder):
+    os.makedirs(target_folder)
+
+# 3. Eğer dosya dışarıdaysa (senin yüklediğin yer), onu klasörün içine taşı:
+source_file = os.path.join(base_path, "u2netp.onnx")
+target_file = os.path.join(target_folder, "u2netp.onnx")
+
+if os.path.exists(source_file) and not os.path.exists(target_file):
+    shutil.move(source_file, target_file)
+    print("✅ Model dosyası (.u2net) klasörüne taşındı ve hazır!")
+# ----------------------------------------
 # --- AYARLAR VE GÜVENLİK ---
 load_dotenv() # .env dosyasını yükle
 
@@ -1717,6 +1729,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
