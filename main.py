@@ -1,4 +1,3 @@
-# new_session ekliyoruz
 from rembg import remove, new_session 
 import sys
 import bcrypt
@@ -20,7 +19,16 @@ from datetime import datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
 from groq import Groq
+import os
+import sys
 
+# --- BU KODU EN TEPEYE (Importların Altına) YAPIŞTIR ---
+# Yapay zeka modelini internetten indirme, klasörden al:
+os.environ["U2NET_HOME"] = os.path.dirname(os.path.abspath(__file__))
+# -------------------------------------------------------
+
+# Diğer importlar burada devam edebilir...
+from fastapi import FastAPI...
 # --- AYARLAR VE GÜVENLİK ---
 load_dotenv() # .env dosyasını yükle
 
@@ -1709,6 +1717,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
