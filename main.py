@@ -93,7 +93,10 @@ class UserLoginSchema(BaseModel):
     password: str # Yeni eklendi
 
 app = FastAPI()
-
+@app.get("/")
+@app.head("/")
+async def root():
+    return {"message": "Bugün Ne Giysem Aktif! 🚀"}
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -1756,6 +1759,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
