@@ -1,3 +1,4 @@
+import gc
 import os
 import sys
 import shutil
@@ -828,7 +829,6 @@ async def update_clothing_item(data: ItemUpdateSchema):
     finally:
         conn.close()
 
-# --- process_image FONKSİYONUNUN YENİ HALİ ---
 @app.post("/process/")
 async def process_image(
     file: UploadFile = File(...), 
@@ -844,49 +844,66 @@ async def process_image(
         return {"error": msg}
     
     # 2. Resmi Okuma
-    img_data = await file.read()
-    img = Image.open(io.BytesIO(img_data))
+    contents = await file.read()
+    img = Image.open(io.BytesIO(contents)).convert("RGB") # RGB'ye çevirip hafızayı rahatlat
     
-    # 3. Spam Kontrolü
-    is_dupe, img_hash = is_duplicate_image(username, img)
-    if is_dupe:
-        return {"error": "Bu kıyafeti daha önce yüklemişsin! 🤔"}
+    # 📉 SÜPER EKO MOD: Resmi 600px'e düşür (RAM tasarrufu)
+    img.thumbnail((600, 600)) 
+    
+    # Hafıza temizliği 1
+    del contents
+    gc.collect()
 
     unique_id = str(uuid.uuid4())
-    path = os.path.join(UPLOAD_DIR, f"{unique_id}.png")
+    filename = f"{unique_id}.png"
     
-    # Dosya imlecini başa sar
-    img = Image.open(io.BytesIO(img_data)) 
+    # Klasör kontrolü
+    upload_folder = os.path.join(base_path, "static", "uploads")
+    os.makedirs(upload_folder, exist_ok=True)
+    path = os.path.join(upload_folder, filename)
     
     try:
-        # ✅ YENİ TAKTİK: Modeli sadece burada çağırıyoruz (Lazy Load)
-        # Bu sayede sunucu açılışta çökmez.
+        # ✅ Yapay Zeka İşlemi
+        print("🤖 AI İşlemi Başlıyor...")
+        
+        # Session'ı burada oluşturuyoruz
         my_session = new_session("u2netp") 
         out = remove(img, session=my_session) 
         
-        out = crop_image(out)
+        # Rengi analiz et
         color_name = analyze_clothing_color(out)
-        out.save(path)
-    except Exception as e:
-        print(f"AI Hatası: {e}")
-        # Hata olursa orijinali kaydet
-        img.save(path)
-        color_name = "Bilinmiyor"
+        
+        # Kaydet
+        out.save(path, format="PNG", optimize=True)
+        print("✅ İşlem Başarılı!")
 
-    url = f"/uploads/{unique_id}.png"
+    except Exception as e:
+        print(f"🚨 AI Hatası: {e}")
+        # Hata olursa orijinalin küçültülmüş halini kaydet
+        img.save(path, format="PNG")
+        color_name = "Bilinmiyor"
+    
+    finally:
+        # 🧹 TEMİZLİK ZAMANI (Çok Önemli)
+        # Değişkenleri sil ve hafızayı boşalt
+        if 'out' in locals(): del out
+        if 'my_session' in locals(): del my_session
+        del img
+        gc.collect() # Çöp toplayıcıyı zorla çalıştır
+
+    url = f"/static/uploads/{filename}"
     
     # 4. Veritabanı Kayıt
     conn = sqlite3.connect(DB_FILE)
     conn.execute("INSERT INTO clothes (username, url, category, season, style, color_name, wear_count, is_clean, sub_category, image_hash) VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?, ?)", 
-                (username, url, category, season, style, color_name, sub_category, img_hash))
+                (username, url, category, season, style, color_name, sub_category, '0'))
     conn.commit()
     conn.close()
     
-    # 5. XP Verme Kısmı
+    # 5. XP Verme
     message = "Kıyafet eklendi!"
     if check_daily_xp_cap(username, 'upload', limit=5):
         update_user_xp(username, 5)
-        # Log kaydı (Hata vermesin diye try-except içinde)
         try:
             conn = sqlite3.connect(DB_FILE)
             today = datetime.now().strftime("%Y-%m-%d")
@@ -895,8 +912,6 @@ async def process_image(
             conn.commit(); conn.close()
         except: pass
         message += " (+5 XP)"
-    else:
-        message += " (Günlük XP limitindesin)"
 
     return {"url": url, "color": color_name, "message": message}
 @app.get("/recommend/")
@@ -1757,6 +1772,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
