@@ -2173,7 +2173,7 @@ input, textarea {
 
             <div class="neon-input-group">
                 <label>Kullanıcı Adı</label>
-               <input type="text" id="regUser" class="neon-input" autocomplete="off">
+               <input type="text" id="regUser" class="neon-input" oninput="this.value = this.value.replace(/\s/g, '')">
             </div>
 
         <div class="neon-input-group">
@@ -4059,17 +4059,7 @@ async function openLeaderboard() {
         c.appendChild(b);
     });
 }
-        function openCategory(category, title) {
-    // 1. Durumu Kaydet
-    activeWardrobeTab = category; // Yükleme modalı için gerekli
-    currentViewContext = { type: 'category', param: category, title: title };
-
-    // 2. Ekranı Ayarla
-    document.getElementById('wardrobe-main-view').style.display = 'none';
-    document.getElementById('wardrobe-detail-view').style.display = 'block';
-    document.getElementById('detail-title').innerText = title;
-    
-    loadWardrobe();
+        
 }
         function closeCategory(){document.getElementById('wardrobe-detail-view').style.display='none';document.getElementById('wardrobe-main-view').style.display='flex';loadStats();}
 
@@ -6638,4 +6628,5 @@ window.addEventListener('popstate', function(event) {
 
 </body>
 </html>
+
 
