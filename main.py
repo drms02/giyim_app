@@ -1,56 +1,6 @@
-import gc
 import os
 import sys
-import shutil
-
-# ==========================================
-# 🛑 BURAYI DİKKATLİ YAPISTIR (EN TEPEYE)
-# ==========================================
-
-# 1. Ana dizini bul
-base_path = os.path.dirname(os.path.abspath(__file__))
-
-# 2. U2NET_HOME değişkenini KESİN olarak ayarla
-# Kütüphane modelleri burada arayacak
-u2net_home_path = os.path.join(base_path, ".u2net")
-os.environ["U2NET_HOME"] = u2net_home_path
-
-# 3. Klasörü oluştur (Yoksa yarat)
-if not os.path.exists(u2net_home_path):
-    os.makedirs(u2net_home_path, exist_ok=True)
-
-# 4. Dosya Kaynak ve Hedef Yolları
-source_file = os.path.join(base_path, "u2netp.onnx")       # Senin yüklediğin
-target_file = os.path.join(u2net_home_path, "u2netp.onnx") # Onun aradığı
-
-# 5. Dosyayı yerine zorla taşı/kopyala
-print(f"🔍 Model kontrol ediliyor...")
-print(f"   Kaynak: {source_file}")
-print(f"   Hedef:  {target_file}")
-
-if os.path.exists(source_file):
-    # Eğer hedefte yoksa veya boyutu farklıysa kopyala
-    if not os.path.exists(target_file) or os.path.getsize(target_file) != os.path.getsize(source_file):
-        print("📦 Model dosyası kopyalanıyor (İndirmeyi engellemek için)...")
-        shutil.copy(source_file, target_file)
-        print("✅ Kopyalama TAMAMLANDI.")
-    else:
-        print("✅ Model zaten doğru yerde ve boyutta.")
-else:
-    print("🚨 HATA: 'u2netp.onnx' ana dizinde bulunamadı! GitHub'a yüklememiş olabilirsin.")
-
-# ==========================================
-# 📚 İMPORTLAR (BU KISIM KESİNLİKLE AŞAĞIDA KALMALI)
-# ==========================================
-from rembg import remove, new_session 
-from dotenv import load_dotenv 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-# ... diğer importların aynı kalsın ...
-from fastapi.security import OAuth2PasswordBearer
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from PIL import Image
+import requests # ✅ API istekleri için şart
 import io
 import uuid
 import sqlite3
@@ -62,38 +12,51 @@ import bcrypt
 import numpy as np
 import re
 import imagehash 
+import gc
 from collections import Counter
 from pydantic import BaseModel
 from datetime import datetime, timedelta
-import requests
 from bs4 import BeautifulSoup
 from groq import Groq
 
-# --- AYARLAR ---
-load_dotenv() # .env dosyasını oku
+# FastAPI Importları
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from dotenv import load_dotenv 
+from PIL import Image
 
+# --- AYARLAR ---
+load_dotenv()
+
+# 1. GROQ AYARLARI (Senin Kodun)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
-    print("UYARI: GROQ_API_KEY bulunamadı! .env dosyasını kontrol et.")
-
+    print("⚠️ UYARI: GROQ_API_KEY bulunamadı! .env dosyasını kontrol et.")
 client = Groq(api_key=GROQ_API_KEY)
 
+# 2. HUGGING FACE AYARLARI (YENİ - ÇÖKMEYİ ÖNLER) 🚀
+# 👇 BURAYA Hugging Face'den aldığın tokeni yapıştır! 👇
+HF_TOKEN = os.getenv("HF_TOKEN") # ✅ Şifreyi sunucudan gizlice al
+HF_API_URL = "https://api-inference.huggingface.co/models/briaai/RMBG-1.4"
 
+# --- YARDIMCI FONKSİYONLAR ---
 def verify_password(plain_password, hashed_password):
-    # Düz şifreyi ve hashli şifreyi karşılaştırır
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def get_password_hash(password):
-    # Şifreyi hashler
-    # gensalt() tuzu ekler, hashpw şifreler
     hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
     return hashed.decode('utf-8')
 
 class UserLoginSchema(BaseModel):
     username: str
-    password: str # Yeni eklendi
+    password: str 
 
+# --- UYGULAMA BAŞLATMA ---
 app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -102,13 +65,100 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- DİZİN AYARLARI ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_DIR = BASE_DIR 
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
-DB_FILE = os.path.join(BASE_DIR, "dolap_v41_clean.db")
+UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads") # Static içine aldık düzenli olsun
+DB_FILE = os.path.join(BASE_DIR, "giyim.db") # Standart isim
 
+# Klasör yoksa oluştur
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+# Static dosyaları bağla
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+
+# --- ✅ ANA SAYFA (RENDER İÇİN SAĞLIK KONTROLÜ) ---
+@app.get("/")
+@app.head("/")
+async def read_root():
+    return FileResponse(os.path.join(BASE_DIR, "static/index.html"))
+
+# ---------------------------------------------------------
+# 🚀 ARKA PLAN SİLME FONKSİYONU (HUGGING FACE KULLANIR)
+# ---------------------------------------------------------
+@app.post("/process/")
+async def process_image(
+    file: UploadFile = File(...), 
+    category: str = Form(...), 
+    season: str = Form(...), 
+    style: str = Form(...), 
+    username: str = Form(...),
+    sub_category: str = Form(None)
+): 
+    # 1. Resmi Okuma
+    contents = await file.read()
+    
+    unique_id = str(uuid.uuid4())
+    filename = f"{unique_id}.png"
+    path = os.path.join(UPLOAD_DIR, filename)
+    url = f"/static/uploads/{filename}"
+    color_name = "Bilinmiyor"
+
+    # 2. Hugging Face'e Gönder (Render Yorulmasın)
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    
+    try:
+        print(f"🌍 Fotoğraf Hugging Face'e gönderiliyor... ({len(contents)} bytes)")
+        response = requests.post(HF_API_URL, headers=headers, data=contents)
+        
+        if response.status_code == 200:
+            print("✅ Temizlenmiş resim alındı!")
+            cleaned_img = Image.open(io.BytesIO(response.content))
+            cleaned_img.save(path, format="PNG")
+            
+            # Basit renk analizi (İstersen burayı açabiliriz)
+            # color_name = analyze_clothing_color(cleaned_img) 
+        else:
+            print(f"⚠️ API Hatası ({response.status_code}): Orijinal kaydediliyor.")
+            with open(path, "wb") as f:
+                f.write(contents)
+                
+    except Exception as e:
+        print(f"🚨 Bağlantı Hatası: {e}")
+        with open(path, "wb") as f:
+            f.write(contents)
+
+    # 3. Veritabanına Kayıt
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        # Tablo yoksa oluştur
+        conn.execute('''CREATE TABLE IF NOT EXISTS clothes 
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                      username TEXT, url TEXT, category TEXT, 
+                      season TEXT, style TEXT, color_name TEXT, 
+                      wear_count INTEGER DEFAULT 0, is_clean INTEGER DEFAULT 1, 
+                      sub_category TEXT, image_hash TEXT)''')
+        
+        conn.execute("INSERT INTO clothes (username, url, category, season, style, color_name, wear_count, is_clean, sub_category, image_hash) VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?, ?)", 
+                    (username, url, category, season, style, color_name, sub_category, '0'))
+        conn.commit()
+        conn.close()
+    except Exception as db_e:
+        print(f"DB Hatası: {db_e}")
+        return {"error": "Veritabanı hatası."}
+    
+    # 4. XP Verme (Basit)
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("UPDATE users SET xp = xp + 5 WHERE username = ?", (username,))
+        conn.commit()
+        conn.close()
+    except: pass
+
+    return {"url": url, "color": color_name, "message": "Kıyafet eklendi! (+5 XP)"}
+
+# ---------------------------------------------------------
+# BURADAN AŞAĞIYA DİĞER ENDPOINTLERİNİ (/user/login vb.) YAPIŞTIRABİLİRSİN
+# ---------------------------------------------------------
 
 static_path = os.path.join(BASE_DIR, "static")
 if os.path.exists(static_path):
@@ -436,31 +486,6 @@ def check_limits(username, feature_type):
     conn.close()
     return True, None
 
-# --- ✅ SİTE AÇILIŞ VE RENDER KONTROLÜ ---
-@app.get("/")
-@app.head("/") # <--- BU SATIR ŞART! Render'ın "Yaşıyor musun?" kontrolü için.
-async def read_root():
-    # index.html dosyasını kullanıcıya gönder
-    return FileResponse("static/index.html")
-# ----------------------------------------
-    
-    # 2. Olmadıysa direkt 'index.html' yolunu dene (Belki dışarıdadır)
-    path2 = "index.html"
-    if os.path.exists(path2):
-        return FileResponse(path2)
-
-    # 3. İkisi de yoksa, bana etrafında ne gördüğünü söyle (HATA RAPORU)
-    import os
-    current_dir = os.getcwd()
-    files = os.listdir(current_dir)
-    static_files = os.listdir("static") if os.path.exists("static") else "Static klasörü yok!"
-    
-    return {
-        "HATA": "Dosya bulunamadı!",
-        "Benim_Konumum": current_dir,
-        "Yanımdaki_Dosyalar": files,
-        "Static_Klasörünün_İçi": static_files
-    }
 
 @app.get("/favicon.ico")
 async def get_favicon():
@@ -843,77 +868,77 @@ async def process_image(
     if not allowed:
         return {"error": msg}
     
-    # 2. Resmi Okuma
-    contents = await file.read()
-    img = Image.open(io.BytesIO(contents)).convert("RGB") # RGB'ye çevirip hafızayı rahatlat
-    
-    # 📉 SÜPER EKO MOD: Resmi 600px'e düşür (RAM tasarrufu)
-    img.thumbnail((600, 600)) 
-    
-    # Hafıza temizliği 1
-    del contents
-    gc.collect()
-
+    # 2. Dosya Yolları Hazırla
     unique_id = str(uuid.uuid4())
     filename = f"{unique_id}.png"
-    
-    # Klasör kontrolü
     upload_folder = os.path.join(base_path, "static", "uploads")
     os.makedirs(upload_folder, exist_ok=True)
     path = os.path.join(upload_folder, filename)
-    
-    try:
-        # ✅ Yapay Zeka İşlemi
-        print("🤖 AI İşlemi Başlıyor...")
-        
-        # Session'ı burada oluşturuyoruz
-        my_session = new_session("u2netp") 
-        out = remove(img, session=my_session) 
-        
-        # Rengi analiz et
-        color_name = analyze_clothing_color(out)
-        
-        # Kaydet
-        out.save(path, format="PNG", optimize=True)
-        print("✅ İşlem Başarılı!")
-
-    except Exception as e:
-        print(f"🚨 AI Hatası: {e}")
-        # Hata olursa orijinalin küçültülmüş halini kaydet
-        img.save(path, format="PNG")
-        color_name = "Bilinmiyor"
-    
-    finally:
-        # 🧹 TEMİZLİK ZAMANI (Çok Önemli)
-        # Değişkenleri sil ve hafızayı boşalt
-        if 'out' in locals(): del out
-        if 'my_session' in locals(): del my_session
-        del img
-        gc.collect() # Çöp toplayıcıyı zorla çalıştır
-
     url = f"/static/uploads/{filename}"
+    color_name = "Bilinmiyor"
+
+    # 3. Resmi Oku
+    try:
+        contents = await file.read()
+        
+        # --- 🌍 HUGGING FACE API ---
+        # Dünyanın en iyi modellerinden biri: RMBG-1.4
+        API_URL = "https://api-inference.huggingface.co/models/briaai/RMBG-1.4"
+        headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+
+        print("🌍 Fotoğraf Hugging Face'e gönderiliyor...")
+        
+        # API'ye Gönder
+        response = requests.post(API_URL, headers=headers, data=contents)
+        
+        if response.status_code == 200:
+            print("✅ Temizlenmiş resim alındı! (API Başarılı)")
+            cleaned_img = Image.open(io.BytesIO(response.content))
+            
+            # Rengi Analiz Et
+            color_name = analyze_clothing_color(cleaned_img)
+            
+            # Kaydet
+            cleaned_img.save(path, format="PNG")
+        else:
+            print(f"⚠️ API Hatası ({response.status_code}): {response.text}")
+            print("⚠️ Orijinal resim kaydediliyor...")
+            # Hata varsa orijinali kaydet (Kullanıcı mağdur olmasın)
+            with open(path, "wb") as f:
+                f.write(contents)
+                
+    except Exception as e:
+        print(f"🚨 Kritik Hata: {str(e)}")
+        # En kötü durumda orijinali kaydet
+        with open(path, "wb") as f:
+            f.write(contents)
+
+    # 4. Veritabanına Kayıt
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        # Tablo yoksa oluştur (Garanti olsun)
+        conn.execute('''CREATE TABLE IF NOT EXISTS clothes 
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                      username TEXT, url TEXT, category TEXT, 
+                      season TEXT, style TEXT, color_name TEXT, 
+                      wear_count INTEGER DEFAULT 0, is_clean INTEGER DEFAULT 1, 
+                      sub_category TEXT, image_hash TEXT)''')
+        
+        conn.execute("INSERT INTO clothes (username, url, category, season, style, color_name, wear_count, is_clean, sub_category, image_hash) VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?, ?)", 
+                    (username, url, category, season, style, color_name, sub_category, '0'))
+        conn.commit()
+        conn.close()
+    except Exception as db_e:
+        print(f"Veritabanı Hatası: {db_e}")
+        return {"error": "Veritabanı hatası oluştu."}
     
-    # 4. Veritabanı Kayıt
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("INSERT INTO clothes (username, url, category, season, style, color_name, wear_count, is_clean, sub_category, image_hash) VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?, ?)", 
-                (username, url, category, season, style, color_name, sub_category, '0'))
-    conn.commit()
-    conn.close()
-    
-    # 5. XP Verme
+    # 5. XP İşlemleri
     message = "Kıyafet eklendi!"
-    if check_daily_xp_cap(username, 'upload', limit=5):
-        update_user_xp(username, 5)
-        try:
-            conn = sqlite3.connect(DB_FILE)
-            today = datetime.now().strftime("%Y-%m-%d")
-            conn.execute("INSERT INTO xp_logs (username, action_type, xp_amount, log_date) VALUES (?, ?, ?, ?)", 
-                         (username, 'upload', 5, today))
-            conn.commit(); conn.close()
-        except: pass
-        message += " (+5 XP)"
+    update_user_xp(username, 5)
+    message += " (+5 XP)"
 
     return {"url": url, "color": color_name, "message": message}
+    
 @app.get("/recommend/")
 async def recommend_outfit(season: str, style: str, username: str, event: str = None, outfit_type: str = "normal", force: bool = False):
     
@@ -1772,6 +1797,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
