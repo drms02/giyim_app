@@ -2016,6 +2016,28 @@ input, textarea {
     z-index: 900 !important; /* Pencereden daha düşük */
 }
 
+        /* --- TİTREME VE DONMAYI ENGELLEYEN KOD --- */
+
+/* Arka planı sabitle (Klavye açılınca sıkışmasın) */
+.neon-grid-bg {
+    position: fixed !important; /* Fixed ile ekrana çiviliyoruz */
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    background-attachment: fixed; /* Mobil için kritik ayar */
+    pointer-events: none; /* Tıklamaları engellemesin */
+}
+
+/* Sayfa içeriği kaydırılabilir olsun ama arka plan dursun */
+#page-intro {
+    min-height: 100vh; /* height yerine min-height */
+    position: relative;
+    z-index: 1;
+    overflow-y: auto; /* İçerik taşarsa kaydır */
+}
+
 </style>
 
 <style>
@@ -2151,7 +2173,7 @@ input, textarea {
 
             <div class="neon-input-group">
                 <label>Kullanıcı Adı</label>
-                <input type="text" id="regUser" class="neon-input" oninput="this.value = this.value.replace(/\s/g, '')">
+               <input type="text" id="regUser" class="neon-input" autocomplete="off">
             </div>
 
         <div class="neon-input-group">
@@ -6616,3 +6638,4 @@ window.addEventListener('popstate', function(event) {
 
 </body>
 </html>
+
