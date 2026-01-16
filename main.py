@@ -435,11 +435,13 @@ def check_limits(username, feature_type):
     conn.close()
     return True, None
 
+# --- ✅ SİTE AÇILIŞ VE RENDER KONTROLÜ ---
 @app.get("/")
+@app.head("/") # <--- BU SATIR ŞART! Render'ın "Yaşıyor musun?" kontrolü için.
 async def read_root():
-    import os
-    # Artık adını düzelttiğin için static içinde bulacak
+    # index.html dosyasını kullanıcıya gönder
     return FileResponse("static/index.html")
+# ----------------------------------------
     
     # 2. Olmadıysa direkt 'index.html' yolunu dene (Belki dışarıdadır)
     path2 = "index.html"
