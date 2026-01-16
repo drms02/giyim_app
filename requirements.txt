@@ -1,10 +1,7 @@
 fastapi
 uvicorn
 python-multipart
-rembg[cpu]
-onnxruntime
 pillow
-imagehash
 numpy
 requests
 beautifulsoup4
