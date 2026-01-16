@@ -3,40 +3,48 @@ import sys
 import shutil
 
 # ==========================================
-# 🛠️ GÜVENLİ BAŞLANGIÇ AYARLARI
+# 🛑 BURAYI DİKKATLİ YAPISTIR (EN TEPEYE)
 # ==========================================
 
+# 1. Ana dizini bul
 base_path = os.path.dirname(os.path.abspath(__file__))
-os.environ["U2NET_HOME"] = base_path
 
-target_folder = os.path.join(base_path, ".u2net")
-source_file = os.path.join(base_path, "u2netp.onnx")
-target_file = os.path.join(target_folder, "u2netp.onnx")
+# 2. U2NET_HOME değişkenini KESİN olarak ayarla
+# Kütüphane modelleri burada arayacak
+u2net_home_path = os.path.join(base_path, ".u2net")
+os.environ["U2NET_HOME"] = u2net_home_path
 
-# --- 🔥 GÜVENLİK DUVARI (TRY-EXCEPT) ---
-# Dosya işlemleri hata verse bile uygulama açılmalı!
-try:
-    if not os.path.exists(target_folder):
-        os.makedirs(target_folder, exist_ok=True)
+# 3. Klasörü oluştur (Yoksa yarat)
+if not os.path.exists(u2net_home_path):
+    os.makedirs(u2net_home_path, exist_ok=True)
 
-    if os.path.exists(source_file) and not os.path.exists(target_file):
-        print("📦 Model dosyası taşınıyor...")
-        shutil.move(source_file, target_file)
-        print("✅ Taşıma BAŞARILI.")
-    elif os.path.exists(target_file):
-        print("✅ Model zaten yerinde.")
+# 4. Dosya Kaynak ve Hedef Yolları
+source_file = os.path.join(base_path, "u2netp.onnx")       # Senin yüklediğin
+target_file = os.path.join(u2net_home_path, "u2netp.onnx") # Onun aradığı
+
+# 5. Dosyayı yerine zorla taşı/kopyala
+print(f"🔍 Model kontrol ediliyor...")
+print(f"   Kaynak: {source_file}")
+print(f"   Hedef:  {target_file}")
+
+if os.path.exists(source_file):
+    # Eğer hedefte yoksa veya boyutu farklıysa kopyala
+    if not os.path.exists(target_file) or os.path.getsize(target_file) != os.path.getsize(source_file):
+        print("📦 Model dosyası kopyalanıyor (İndirmeyi engellemek için)...")
+        shutil.copy(source_file, target_file)
+        print("✅ Kopyalama TAMAMLANDI.")
     else:
-        print("⚠️ UYARI: Model dosyası bulunamadı, ama uygulama başlatılıyor.")
-except Exception as e:
-    print(f"⚠️ Dosya işlemi hatası (Önemsiz): {e}")
-    # Hata olsa bile devam et, sunucuyu durdurma!
+        print("✅ Model zaten doğru yerde ve boyutta.")
+else:
+    print("🚨 HATA: 'u2netp.onnx' ana dizinde bulunamadı! GitHub'a yüklememiş olabilirsin.")
 
 # ==========================================
-# 📚 IMPORTLAR (Buradan sonrası aynı)
+# 📚 İMPORTLAR (BU KISIM KESİNLİKLE AŞAĞIDA KALMALI)
 # ==========================================
 from rembg import remove, new_session 
 from dotenv import load_dotenv 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+# ... diğer importların aynı kalsın ...
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -1748,6 +1756,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
