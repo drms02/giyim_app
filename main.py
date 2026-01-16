@@ -3,41 +3,38 @@ import sys
 import shutil
 
 # ==========================================
-# 🛠️ 1. KRİTİK BÖLÜM: MODEL VE ORTAM AYARLARI
-# (Burası DİĞER IMPORTLARDAN ÖNCE çalışmalı!)
+# 🛠️ GÜVENLİ BAŞLANGIÇ AYARLARI
 # ==========================================
 
-# Uygulamanın çalıştığı ana dizini bul
 base_path = os.path.dirname(os.path.abspath(__file__))
-
-# Rembg kütüphanesine "Evim burası, dosyaları burada ara" diyoruz
 os.environ["U2NET_HOME"] = base_path
 
-# Hedef klasörü oluştur (.u2net)
 target_folder = os.path.join(base_path, ".u2net")
-if not os.path.exists(target_folder):
-    os.makedirs(target_folder)
-
-# Kaynak dosya (Senin yüklediğin) ve Hedef dosya (Kütüphanenin aradığı)
 source_file = os.path.join(base_path, "u2netp.onnx")
 target_file = os.path.join(target_folder, "u2netp.onnx")
 
-# Dosya kontrolü ve taşıma işlemi
-if os.path.exists(source_file) and not os.path.exists(target_file):
-    print("📦 Model dosyası (.u2net) klasörüne taşınıyor...")
-    shutil.move(source_file, target_file)
-    print("✅ Taşıma BAŞARILI.")
-elif os.path.exists(target_file):
-    print("✅ Model dosyası zaten yerinde (Hazır).")
-else:
-    print("🚨 UYARI: 'u2netp.onnx' dosyası bulunamadı! GitHub'a yüklediğine emin misin?")
+# --- 🔥 GÜVENLİK DUVARI (TRY-EXCEPT) ---
+# Dosya işlemleri hata verse bile uygulama açılmalı!
+try:
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder, exist_ok=True)
+
+    if os.path.exists(source_file) and not os.path.exists(target_file):
+        print("📦 Model dosyası taşınıyor...")
+        shutil.move(source_file, target_file)
+        print("✅ Taşıma BAŞARILI.")
+    elif os.path.exists(target_file):
+        print("✅ Model zaten yerinde.")
+    else:
+        print("⚠️ UYARI: Model dosyası bulunamadı, ama uygulama başlatılıyor.")
+except Exception as e:
+    print(f"⚠️ Dosya işlemi hatası (Önemsiz): {e}")
+    # Hata olsa bile devam et, sunucuyu durdurma!
 
 # ==========================================
-# 📚 2. BÖLÜM: KÜTÜPHANE IMPORTLARI
-# (Ayar yapıldıktan SONRA çağırıyoruz)
+# 📚 IMPORTLAR (Buradan sonrası aynı)
 # ==========================================
-
-from rembg import remove, new_session # <--- Artık güvenli, ayarları görecek
+from rembg import remove, new_session 
 from dotenv import load_dotenv 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.security import OAuth2PasswordBearer
@@ -1751,6 +1748,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
