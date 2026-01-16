@@ -1,15 +1,58 @@
-from rembg import remove, new_session 
+import os
 import sys
-import bcrypt
-from dotenv import load_dotenv # .env dosyasını okumak için
-from fastapi.security import OAuth2PasswordBearer
+import shutil
+
+# ==========================================
+# 🛠️ 1. KRİTİK BÖLÜM: MODEL VE ORTAM AYARLARI
+# (Burası DİĞER IMPORTLARDAN ÖNCE çalışmalı!)
+# ==========================================
+
+# Uygulamanın çalıştığı ana dizini bul
+base_path = os.path.dirname(os.path.abspath(__file__))
+
+# Rembg kütüphanesine "Evim burası, dosyaları burada ara" diyoruz
+os.environ["U2NET_HOME"] = base_path
+
+# Hedef klasörü oluştur (.u2net)
+target_folder = os.path.join(base_path, ".u2net")
+if not os.path.exists(target_folder):
+    os.makedirs(target_folder)
+
+# Kaynak dosya (Senin yüklediğin) ve Hedef dosya (Kütüphanenin aradığı)
+source_file = os.path.join(base_path, "u2netp.onnx")
+target_file = os.path.join(target_folder, "u2netp.onnx")
+
+# Dosya kontrolü ve taşıma işlemi
+if os.path.exists(source_file) and not os.path.exists(target_file):
+    print("📦 Model dosyası (.u2net) klasörüne taşınıyor...")
+    shutil.move(source_file, target_file)
+    print("✅ Taşıma BAŞARILI.")
+elif os.path.exists(target_file):
+    print("✅ Model dosyası zaten yerinde (Hazır).")
+else:
+    print("🚨 UYARI: 'u2netp.onnx' dosyası bulunamadı! GitHub'a yüklediğine emin misin?")
+
+# ==========================================
+# 📚 2. BÖLÜM: KÜTÜPHANE IMPORTLARI
+# (Ayar yapıldıktan SONRA çağırıyoruz)
+# ==========================================
+
+from rembg import remove, new_session # <--- Artık güvenli, ayarları görecek
+from dotenv import load_dotenv 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from rembg import remove
 from PIL import Image
-import io, os, uuid, sqlite3, math, colorsys, json, random
+import io
+import uuid
+import sqlite3
+import math
+import colorsys
+import json
+import random
+import bcrypt
 import numpy as np
 import re
 import imagehash 
@@ -19,30 +62,9 @@ from datetime import datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
 from groq import Groq
-import os
-import sys
-import shutil # Dosya taşıma komutu
 
-# --- AKILLI MODEL AYARI (BUNU KULLAN) ---
-# 1. Uygulamanın çalıştığı ana dizini bul
-base_path = os.path.dirname(os.path.abspath(__file__))
-os.environ["U2NET_HOME"] = base_path
-
-# 2. Kütüphane dosyayı ".u2net" klasöründe arar. O klasörü oluşturalım:
-target_folder = os.path.join(base_path, ".u2net")
-if not os.path.exists(target_folder):
-    os.makedirs(target_folder)
-
-# 3. Eğer dosya dışarıdaysa (senin yüklediğin yer), onu klasörün içine taşı:
-source_file = os.path.join(base_path, "u2netp.onnx")
-target_file = os.path.join(target_folder, "u2netp.onnx")
-
-if os.path.exists(source_file) and not os.path.exists(target_file):
-    shutil.move(source_file, target_file)
-    print("✅ Model dosyası (.u2net) klasörüne taşındı ve hazır!")
-# ----------------------------------------
-# --- AYARLAR VE GÜVENLİK ---
-load_dotenv() # .env dosyasını yükle
+# --- AYARLAR ---
+load_dotenv() # .env dosyasını oku
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
@@ -1729,6 +1751,7 @@ async def get_public_profile(username: str):
     finally:
 
         conn.close()           
+
 
 
 
